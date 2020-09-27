@@ -1,3 +1,13 @@
+/**  https://etherscan.io/address/0xf49A20407b92332704B5FE4942c95D7d134b843b#code
+ *Submitted for verification at Etherscan.io on 2020-09-15
+ */
+
+// Official Website: percent.finance
+
+// File: contracts/PctPool.sol
+
+// Modified from Synthetix's Unipool: https://etherscan.io/address/0x48D7f315feDcaD332F68aafa017c7C158BC54760#code
+
 // File: @openzeppelin/contracts/math/Math.sol
 
 pragma solidity ^0.5.0;
@@ -437,6 +447,7 @@ library Address {
         // for accounts without code, i.e. `keccak256('')`
         bytes32 codehash;
 
+
             bytes32 accountHash
          = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
         // solhint-disable-next-line no-inline-assembly
@@ -646,7 +657,7 @@ contract IRewardDistributionRecipient is Ownable {
     }
 }
 
-// File: contracts/Unipool.sol
+// File: contracts/PctPool.sol
 
 pragma solidity ^0.5.0;
 
@@ -654,10 +665,14 @@ contract LPTokenWrapper {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IERC20 public uni = IERC20(0xe9Cf7887b93150D4F2Da7dFc6D502B216438F244);
+    IERC20 public stakeToken;
 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
+
+    constructor(address stakeTokenAddress) public {
+        stakeToken = IERC20(stakeTokenAddress);
+    }
 
     function totalSupply() public view returns (uint256) {
         return _totalSupply;
@@ -670,19 +685,19 @@ contract LPTokenWrapper {
     function stake(uint256 amount) public {
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
-        uni.safeTransferFrom(msg.sender, address(this), amount);
+        stakeToken.safeTransferFrom(msg.sender, address(this), amount);
     }
 
     function withdraw(uint256 amount) public {
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
-        uni.safeTransfer(msg.sender, amount);
+        stakeToken.safeTransfer(msg.sender, amount);
     }
 }
 
-contract Unipool is LPTokenWrapper, IRewardDistributionRecipient {
-    IERC20 public snx = IERC20(0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F);
-    uint256 public constant DURATION = 7 days;
+contract PctPool is LPTokenWrapper, IRewardDistributionRecipient {
+    IERC20 public pct;
+    uint256 public constant DURATION = 14 days;
 
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
@@ -690,6 +705,14 @@ contract Unipool is LPTokenWrapper, IRewardDistributionRecipient {
     uint256 public rewardPerTokenStored;
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
+
+    constructor(address pctAddress, address stakeTokenAddress)
+        public
+        LPTokenWrapper(stakeTokenAddress)
+    {
+        rewardDistribution = msg.sender;
+        pct = IERC20(pctAddress);
+    }
 
     event RewardAdded(uint256 reward);
     event Staked(address indexed user, uint256 amount);
@@ -754,7 +777,7 @@ contract Unipool is LPTokenWrapper, IRewardDistributionRecipient {
         uint256 reward = earned(msg.sender);
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            snx.safeTransfer(msg.sender, reward);
+            pct.safeTransfer(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
